@@ -5,6 +5,11 @@ import { ShapeNode, ConnectionNode, CanvasNode } from '@/ast/ast-types';
 import { ASTUtils } from '@/ast/ast-utils';
 import { CanvasRenderer } from './CanvasRenderer';
 import { CanvasToolbar } from './CanvasToolbar';
+import { CanvasImporter } from './CanvasImporter';
+import { ExcalidrawImporter } from './ExcalidrawImporter';
+import { TldrawImporter } from './TldrawImporter';
+import { UserToolbox } from './UserToolbox';
+import { AnnotationTools } from './AnnotationTools';
 
 interface CanvasProps {
   width?: number;
@@ -28,6 +33,22 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [importedData, setImportedData] = useState<{ type: 'excalidraw' | 'tldraw'; data: any } | null>(null);
+  const [canvasSettings, setCanvasSettings] = useState({
+    showGrid: true,
+    showConnections: true,
+    lockElements: false,
+    zoom: 1.0,
+  });
+  const [annotations, setAnnotations] = useState<Array<{
+    id: string;
+    type: string;
+    content: string;
+    position: { x: number; y: number };
+    author: string;
+    timestamp: Date;
+    resolved: boolean;
+  }>>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -106,15 +127,15 @@ export const Canvas: React.FC<CanvasProps> = ({
     onNodeUpdated?.(nodeId, properties);
   };
 
-  const handleZoom = (direction: 'in' | 'out') => {
-    // Zoom functionality would be implemented here
-    console.log('Zooming', direction);
+  const handleImport = (data: any, type: 'excalidraw' | 'tldraw') => {
+    setImportedData({ type, data });
   };
 
   const handleClear = () => {
     setShapes([]);
     setConnections([]);
     setSelectedNodeId(null);
+    setImportedData(null);
     onNodeDeleted?.('all');
   };
 
@@ -126,6 +147,54 @@ export const Canvas: React.FC<CanvasProps> = ({
   const handleShare = () => {
     // Share functionality would be implemented here
     console.log('Sharing canvas');
+  };
+
+  const handleToolAction = (action: string) => {
+    switch (action) {
+      case 'zoom-in':
+        setCanvasSettings(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 5) }));
+        break;
+      case 'zoom-out':
+        setCanvasSettings(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.1) }));
+        break;
+      case 'grid':
+        setCanvasSettings(prev => ({ ...prev, showGrid: !prev.showGrid }));
+        break;
+      case 'connections':
+        setCanvasSettings(prev => ({ ...prev, showConnections: !prev.showConnections }));
+        break;
+      case 'lock':
+        setCanvasSettings(prev => ({ ...prev, lockElements: true }));
+        break;
+      case 'unlock':
+        setCanvasSettings(prev => ({ ...prev, lockElements: false }));
+        break;
+      default:
+        console.log('Action:', action);
+    }
+  };
+
+  const handleAnnotation = (type: string, content: string) => {
+    const newAnnotation = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      content,
+      position: { x: 100, y: 100 },
+      author: 'User',
+      timestamp: new Date(),
+      resolved: false,
+    };
+    setAnnotations(prev => [...prev, newAnnotation]);
+  };
+
+  const handleAnnotationUpdate = (id: string, updates: any) => {
+    setAnnotations(prev => prev.map(ann => 
+      ann.id === id ? { ...ann, ...updates } : ann
+    ));
+  };
+
+  const handleAnnotationDelete = (id: string) => {
+    setAnnotations(prev => prev.filter(ann => ann.id !== id));
   };
 
   return (
@@ -147,11 +216,51 @@ export const Canvas: React.FC<CanvasProps> = ({
       <CanvasToolbar
         onToolSelect={setSelectedTool}
         selectedTool={selectedTool}
-        onZoom={handleZoom}
+        onZoom={(direction) => handleToolAction(direction === 'in' ? 'zoom-in' : 'zoom-out')}
         onClear={handleClear}
         onSave={handleSave}
         onShare={handleShare}
       />
+
+      <CanvasImporter
+        onImport={handleImport}
+        onClear={handleClear}
+      />
+
+      <UserToolbox
+        onToolSelect={setSelectedTool}
+        selectedTool={selectedTool}
+        onAction={handleToolAction}
+        canvasSettings={canvasSettings}
+      />
+
+      <AnnotationTools
+        onAnnotation={handleAnnotation}
+        selectedAnnotation={selectedAnnotation}
+        annotations={annotations}
+        onAnnotationUpdate={handleAnnotationUpdate}
+        onAnnotationDelete={handleAnnotationDelete}
+      />
+
+      {importedData?.type === 'excalidraw' && (
+        <ExcalidrawImporter
+          excalidrawData={importedData.data}
+          onImport={(newShapes, newConnections) => {
+            setShapes(newShapes);
+            setConnections(newConnections);
+          }}
+        />
+      )}
+
+      {importedData?.type === 'tldraw' && (
+        <TldrawImporter
+          tldrawData={importedData.data}
+          onImport={(newShapes, newConnections) => {
+            setShapes(newShapes);
+            setConnections(newConnections);
+          }}
+        />
+      )}
     </div>
   );
 };
