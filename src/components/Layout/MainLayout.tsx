@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Canvas } from '@/components/Canvas/Canvas';
-import { ChatInterface } from '@/components/Chat/ChatInterface';
+import { AIAssistant } from '@/components/Chat/AIAssistant';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 
 interface MainLayoutProps {
@@ -46,9 +46,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* Chat Sidebar */}
+        {/* AI Assistant Sidebar */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-          <ChatInterface
+          <AIAssistant
             onSendMessage={async (message) => {
               console.log('Sending message:', message);
             }}
