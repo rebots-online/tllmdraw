@@ -290,95 +290,112 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, [shapes, connections, importedData, canvasSettings]);
 
   return (
-    <div
-      ref={canvasRef}
-      className="relative border border-gray-300 bg-white"
-      style={{ 
-        width, 
-        height,
-        backgroundColor: canvasSettings.backgroundColor,
-      }}
-      onClick={handleCanvasClick}
-    >
-      <CanvasRenderer
-        canvas={canvas}
-        shapes={shapes}
-        connections={connections}
-        selectedNodeId={selectedNodeId || undefined}
-        onNodeSelect={handleNodeSelect}
-        onNodeUpdate={handleNodeUpdate}
-      />
-      
-      <CanvasToolbar
-        onToolSelect={setSelectedTool}
-        selectedTool={selectedTool}
-        onZoom={(direction) => handleToolAction(direction === 'in' ? 'zoom-in' : 'zoom-out')}
-        onClear={handleClear}
-        onSave={handleSave}
-        onShare={handleShare}
-      />
-
-      <CanvasImporter
-        onImport={handleImport}
-        onClear={handleClear}
-      />
-
-      <UserToolbox
-        onToolSelect={setSelectedTool}
-        selectedTool={selectedTool}
-        onAction={handleToolAction}
-        canvasSettings={canvasSettings}
-      />
-
-      <AnnotationTools
-        onAnnotation={handleAnnotation}
-        selectedAnnotation={selectedAnnotation}
-        annotations={annotations}
-        onAnnotationUpdate={handleAnnotationUpdate}
-        onAnnotationDelete={handleAnnotationDelete}
-      />
-
-      <CanvasExporter
-        canvasData={{ shapes, connections, canvas }}
-        onExport={handleExport}
-      />
-
-      <CanvasHistory
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onSave={handleSave}
-        canUndo={historyIndex > 0}
-        canRedo={historyIndex < history.length - 1}
-        history={history}
-      />
-
-      <CanvasSettings
-        settings={canvasSettings}
-        onSettingsChange={handleSettingsChange}
-        onReset={handleSettingsReset}
-        onSave={handleSettingsSave}
-      />
-
-      {importedData?.type === 'excalidraw' && (
-        <ExcalidrawImporter
-          excalidrawData={importedData.data}
-          onImport={(newShapes, newConnections) => {
-            console.log('Import callback received:', { newShapes, newConnections });
-            setShapes(newShapes);
-            setConnections(newConnections);
-          }}
+    <div className="relative w-full h-full">
+      <div
+        ref={canvasRef}
+        className="relative border border-gray-300 bg-white"
+        style={{ 
+          width, 
+          height,
+          backgroundColor: canvasSettings.backgroundColor,
+        }}
+        onClick={handleCanvasClick}
+      >
+        <CanvasRenderer
+          canvas={canvas}
+          shapes={shapes}
+          connections={connections}
+          selectedNodeId={selectedNodeId || undefined}
+          onNodeSelect={handleNodeSelect}
+          onNodeUpdate={handleNodeUpdate}
         />
-      )}
+        
+        {/* Positioned toolboxes to prevent overlap */}
+        <div className="absolute top-4 left-4 z-10">
+          <CanvasToolbar
+            onToolSelect={setSelectedTool}
+            selectedTool={selectedTool}
+            onZoom={(direction) => handleToolAction(direction === 'in' ? 'zoom-in' : 'zoom-out')}
+            onClear={handleClear}
+            onSave={handleSave}
+            onShare={handleShare}
+          />
+        </div>
 
-      {importedData?.type === 'tldraw' && (
-        <TldrawImporter
-          tldrawData={importedData.data}
-          onImport={(newShapes, newConnections) => {
-            setShapes(newShapes);
-            setConnections(newConnections);
-          }}
-        />
-      )}
+        <div className="absolute top-4 right-4 z-10">
+          <CanvasImporter
+            onImport={handleImport}
+            onClear={handleClear}
+          />
+        </div>
+
+        <div className="absolute bottom-4 left-4 z-10">
+          <UserToolbox
+            onToolSelect={setSelectedTool}
+            selectedTool={selectedTool}
+            onAction={handleToolAction}
+            canvasSettings={canvasSettings}
+          />
+        </div>
+
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+          <AnnotationTools
+            onAnnotation={handleAnnotation}
+            selectedAnnotation={selectedAnnotation}
+            annotations={annotations}
+            onAnnotationUpdate={handleAnnotationUpdate}
+            onAnnotationDelete={handleAnnotationDelete}
+          />
+        </div>
+
+        <div className="absolute top-4 right-24 z-10">
+          <CanvasExporter
+            canvasData={{ shapes, connections, canvas }}
+            onExport={handleExport}
+          />
+        </div>
+
+        <div className="absolute top-4 right-44 z-10">
+          <CanvasHistory
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onSave={handleSave}
+            canUndo={historyIndex > 0}
+            canRedo={historyIndex < history.length - 1}
+            history={history}
+          />
+        </div>
+
+        <div className="absolute top-4 right-64 z-10">
+          <CanvasSettings
+            settings={canvasSettings}
+            onSettingsChange={handleSettingsChange}
+            onReset={handleSettingsReset}
+            onSave={handleSettingsSave}
+          />
+        </div>
+
+        {importedData?.type === 'excalidraw' && (
+          <ExcalidrawImporter
+            excalidrawData={importedData.data}
+            onImport={(newShapes, newConnections) => {
+              console.log('Import callback received:', { newShapes, newConnections });
+              setShapes(newShapes);
+              setConnections(newConnections);
+            }}
+          />
+        )}
+
+        {importedData?.type === 'tldraw' && (
+          <TldrawImporter
+            tldrawData={importedData.data}
+            onImport={(newShapes, newConnections) => {
+              setShapes(newShapes);
+              setConnections(newConnections);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

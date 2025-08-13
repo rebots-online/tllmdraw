@@ -40,7 +40,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   ];
 
   return (
-    <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-10">
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
       <div className="flex flex-col space-y-2">
         {tools.map((tool) => {
           const Icon = tool.icon;
