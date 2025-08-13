@@ -8,8 +8,8 @@ import {
   Square, 
   Circle, 
   Triangle, 
-  Line, 
-  Arrow, 
+  Minus, 
+  ArrowRight, 
   Hand, 
   Move, 
   RotateCcw, 
@@ -31,7 +31,7 @@ import {
   Lock,
   Unlock,
   Copy,
-  Paste,
+  Clipboard,
   Trash2,
   Undo,
   Redo
@@ -66,8 +66,8 @@ export const UserToolbox: React.FC<UserToolboxProps> = ({
     { id: 'rectangle', icon: Square, label: 'Rectangle' },
     { id: 'circle', icon: Circle, label: 'Circle' },
     { id: 'triangle', icon: Triangle, label: 'Triangle' },
-    { id: 'line', icon: Line, label: 'Line' },
-    { id: 'arrow', icon: Arrow, label: 'Arrow' },
+    { id: 'line', icon: Minus, label: 'Line' },
+    { id: 'arrow', icon: ArrowRight, label: 'Arrow' },
   ];
 
   const transformTools = [
@@ -99,7 +99,7 @@ export const UserToolbox: React.FC<UserToolboxProps> = ({
     { id: 'undo', icon: Undo, label: 'Undo' },
     { id: 'redo', icon: Redo, label: 'Redo' },
     { id: 'copy', icon: Copy, label: 'Copy' },
-    { id: 'paste', icon: Paste, label: 'Paste' },
+    { id: 'paste', icon: Clipboard, label: 'Paste' },
     { id: 'delete', icon: Trash2, label: 'Delete' },
   ];
 

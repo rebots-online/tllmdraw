@@ -49,6 +49,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     timestamp: Date;
     resolved: boolean;
   }>>([]);
+  const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
