@@ -10,6 +10,9 @@ import { ExcalidrawImporter } from './ExcalidrawImporter';
 import { TldrawImporter } from './TldrawImporter';
 import { UserToolbox } from './UserToolbox';
 import { AnnotationTools } from './AnnotationTools';
+import { CanvasExporter } from './CanvasExporter';
+import { CanvasHistory } from './CanvasHistory';
+import { CanvasSettings } from './CanvasSettings';
 
 interface CanvasProps {
   width?: number;
@@ -39,6 +42,9 @@ export const Canvas: React.FC<CanvasProps> = ({
     showConnections: true,
     lockElements: false,
     zoom: 1.0,
+    backgroundColor: '#ffffff',
+    snapToGrid: true,
+    gridSize: 20,
   });
   const [annotations, setAnnotations] = useState<Array<{
     id: string;
@@ -50,6 +56,13 @@ export const Canvas: React.FC<CanvasProps> = ({
     resolved: boolean;
   }>>([]);
   const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(null);
+  const [history, setHistory] = useState<Array<{
+    id: string;
+    action: string;
+    timestamp: Date;
+    description: string;
+  }>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -57,8 +70,14 @@ export const Canvas: React.FC<CanvasProps> = ({
     if (!canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    // Snap to grid if enabled
+    if (canvasSettings.snapToGrid) {
+      x = Math.round(x / canvasSettings.gridSize) * canvasSettings.gridSize;
+      y = Math.round(y / canvasSettings.gridSize) * canvasSettings.gridSize;
+    }
 
     if (selectedTool === 'rectangle') {
       const shapeNode: ShapeNode = ASTUtils.createShape(
@@ -75,6 +94,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         }
       );
       setShapes(prev => [...prev, shapeNode]);
+      addToHistory('create', 'Rectangle created');
       onNodeCreated?.(shapeNode);
     } else if (selectedTool === 'circle') {
       const shapeNode: ShapeNode = ASTUtils.createShape(
@@ -91,6 +111,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         }
       );
       setShapes(prev => [...prev, shapeNode]);
+      addToHistory('create', 'Circle created');
       onNodeCreated?.(shapeNode);
     } else if (selectedTool === 'text') {
       const shapeNode: ShapeNode = ASTUtils.createShape(
@@ -111,7 +132,34 @@ export const Canvas: React.FC<CanvasProps> = ({
         }
       );
       setShapes(prev => [...prev, shapeNode]);
+      addToHistory('create', 'Text element created');
       onNodeCreated?.(shapeNode);
+    }
+  };
+
+  const addToHistory = (action: string, description: string) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    const newEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      action,
+      timestamp: new Date(),
+      description,
+    };
+    setHistory([...newHistory, newEntry]);
+    setHistoryIndex(newHistory.length);
+  };
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      // Implement actual undo logic here
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      // Implement actual redo logic here
     }
   };
 
@@ -129,7 +177,9 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleImport = (data: any, type: 'excalidraw' | 'tldraw') => {
+    console.log('Importing data:', data);
     setImportedData({ type, data });
+    addToHistory('import', `Imported ${type} file`);
   };
 
   const handleClear = () => {
@@ -137,12 +187,14 @@ export const Canvas: React.FC<CanvasProps> = ({
     setConnections([]);
     setSelectedNodeId(null);
     setImportedData(null);
+    addToHistory('delete', 'Canvas cleared');
     onNodeDeleted?.('all');
   };
 
   const handleSave = () => {
     // Save functionality would be implemented here
     console.log('Saving canvas');
+    addToHistory('save', 'Canvas saved');
   };
 
   const handleShare = () => {
@@ -186,6 +238,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       resolved: false,
     };
     setAnnotations(prev => [...prev, newAnnotation]);
+    addToHistory('create', 'Annotation added');
   };
 
   const handleAnnotationUpdate = (id: string, updates: any) => {
@@ -196,13 +249,55 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleAnnotationDelete = (id: string) => {
     setAnnotations(prev => prev.filter(ann => ann.id !== id));
+    addToHistory('delete', 'Annotation removed');
   };
+
+  const handleExport = async (format: 'png' | 'svg' | 'json' | 'excalidraw' | 'tldraw') => {
+    // Implement actual export logic here
+    console.log('Exporting as', format);
+    addToHistory('export', `Exported as ${format}`);
+  };
+
+  const handleSettingsChange = (newSettings: any) => {
+    setCanvasSettings(newSettings);
+  };
+
+  const handleSettingsReset = () => {
+    setCanvasSettings({
+      showGrid: true,
+      showConnections: true,
+      lockElements: false,
+      zoom: 1.0,
+      backgroundColor: '#ffffff',
+      snapToGrid: true,
+      gridSize: 20,
+    });
+  };
+
+  const handleSettingsSave = () => {
+    // Save settings to localStorage or backend
+    localStorage.setItem('canvasSettings', JSON.stringify(canvasSettings));
+  };
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Canvas state:', {
+      shapes: shapes.length,
+      connections: connections.length,
+      importedData: importedData ? importedData.type : 'none',
+      canvasSettings
+    });
+  }, [shapes, connections, importedData, canvasSettings]);
 
   return (
     <div
       ref={canvasRef}
       className="relative border border-gray-300 bg-white"
-      style={{ width, height }}
+      style={{ 
+        width, 
+        height,
+        backgroundColor: canvasSettings.backgroundColor,
+      }}
       onClick={handleCanvasClick}
     >
       <CanvasRenderer
@@ -243,10 +338,32 @@ export const Canvas: React.FC<CanvasProps> = ({
         onAnnotationDelete={handleAnnotationDelete}
       />
 
+      <CanvasExporter
+        canvasData={{ shapes, connections, canvas }}
+        onExport={handleExport}
+      />
+
+      <CanvasHistory
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onSave={handleSave}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
+        history={history}
+      />
+
+      <CanvasSettings
+        settings={canvasSettings}
+        onSettingsChange={handleSettingsChange}
+        onReset={handleSettingsReset}
+        onSave={handleSettingsSave}
+      />
+
       {importedData?.type === 'excalidraw' && (
         <ExcalidrawImporter
           excalidrawData={importedData.data}
           onImport={(newShapes, newConnections) => {
+            console.log('Import callback received:', { newShapes, newConnections });
             setShapes(newShapes);
             setConnections(newConnections);
           }}

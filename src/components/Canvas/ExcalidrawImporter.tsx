@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ShapeNode, ConnectionNode } from '@/ast/ast-types';
 import { ASTUtils } from '@/ast/ast-utils';
 
@@ -13,67 +13,156 @@ export const ExcalidrawImporter: React.FC<ExcalidrawImporterProps> = ({
   excalidrawData,
   onImport,
 }) => {
-  const convertExcalidrawToShapes = (excalidrawData: any): ShapeNode[] => {
-    const shapes: ShapeNode[] = [];
-    
-    if (excalidrawData.elements) {
+  useEffect(() => {
+    if (!excalidrawData || !excalidrawData.elements) {
+      console.warn('Invalid Excalidraw data:', excalidrawData);
+      return;
+    }
+
+    const convertExcalidrawToShapes = (excalidrawData: any): ShapeNode[] => {
+      const shapes: ShapeNode[] = [];
+      
       excalidrawData.elements.forEach((element: any) => {
-        if (element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'text') {
+        console.log('Processing element:', element);
+        
+        if (element.type === 'rectangle') {
           const shapeNode: ShapeNode = ASTUtils.createShape(
-            element.type === 'text' ? 'text' : element.type === 'ellipse' ? 'circle' : 'rectangle',
+            'rectangle',
             element.x,
             element.y,
-            element.width || 100,
-            element.height || 100,
+            element.width,
+            element.height,
             {
-              shapeType: element.type === 'text' ? 'text' : element.type === 'ellipse' ? 'circle' : 'rectangle',
+              shapeType: 'rectangle',
               x: element.x,
               y: element.y,
-              width: element.width || 100,
-              height: element.height || 100,
-              rotation: element.rotation || 0,
+              width: element.width,
+              height: element.height,
+              rotation: element.angle || 0,
               fillColor: element.backgroundColor || '#ffffff',
               strokeColor: element.strokeColor || '#000000',
               strokeWidth: element.strokeWidth || 2,
+              text: '', // Rectangle doesn't have text
+              fontSize: 16,
+              fontFamily: 'Arial, sans-serif',
+              textAlign: 'left',
+            }
+          );
+          shapes.push(shapeNode);
+          console.log('Created rectangle shape:', shapeNode);
+        } else if (element.type === 'text') {
+          const shapeNode: ShapeNode = ASTUtils.createShape(
+            'text',
+            element.x,
+            element.y,
+            element.width,
+            element.height,
+            {
+              shapeType: 'text',
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              rotation: element.angle || 0,
+              fillColor: element.backgroundColor || '#ffffff',
+              strokeColor: element.strokeColor || '#000000',
+              strokeWidth: element.strokeWidth || 1,
               text: element.text || '',
               fontSize: element.fontSize || 16,
-              fontFamily: element.fontFamily || 'Arial, sans-serif',
+              fontFamily: 'Arial, sans-serif',
               textAlign: element.textAlign || 'left',
             }
           );
           shapes.push(shapeNode);
+          console.log('Created text shape:', shapeNode);
+        } else if (element.type === 'ellipse') {
+          const shapeNode: ShapeNode = ASTUtils.createShape(
+            'circle',
+            element.x,
+            element.y,
+            element.width,
+            element.height,
+            {
+              shapeType: 'circle',
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              rotation: element.angle || 0,
+              fillColor: element.backgroundColor || '#ffffff',
+              strokeColor: element.strokeColor || '#000000',
+              strokeWidth: element.strokeWidth || 2,
+              text: '',
+              fontSize: 16,
+              fontFamily: 'Arial, sans-serif',
+              textAlign: 'left',
+            }
+          );
+          shapes.push(shapeNode);
+          console.log('Created circle shape:', shapeNode);
+        } else if (element.type === 'line' || element.type === 'arrow') {
+          // For lines and arrows, create a simple line shape
+          const shapeNode: ShapeNode = ASTUtils.createShape(
+            'rectangle', // Using rectangle as a simple line representation
+            element.x,
+            element.y,
+            element.width || 100,
+            element.height || 2,
+            {
+              shapeType: 'rectangle',
+              x: element.x,
+              y: element.y,
+              width: element.width || 100,
+              height: element.height || 2,
+              rotation: element.angle || 0,
+              fillColor: 'transparent',
+              strokeColor: element.strokeColor || '#000000',
+              strokeWidth: element.strokeWidth || 2,
+              text: '',
+              fontSize: 16,
+              fontFamily: 'Arial, sans-serif',
+              textAlign: 'left',
+            }
+          );
+          shapes.push(shapeNode);
+          console.log('Created line shape:', shapeNode);
         }
       });
-    }
-    
-    return shapes;
-  };
+      
+      console.log('Total shapes created:', shapes.length);
+      return shapes;
+    };
 
-  const convertExcalidrawToConnections = (excalidrawData: any): ConnectionNode[] => {
-    const connections: ConnectionNode[] = [];
-    
-    if (excalidrawData.elements) {
+    const convertExcalidrawToConnections = (excalidrawData: any): ConnectionNode[] => {
+      const connections: ConnectionNode[] = [];
+      
       excalidrawData.elements.forEach((element: any) => {
-        if (element.type === 'arrow' || element.type === 'line') {
-          // For arrows and lines, we'll create connection nodes
-          // This is a simplified conversion - in practice, you'd need to track start/end points
+        if (element.type === 'arrow') {
+          // Create connection for arrows
           const connectionNode: ConnectionNode = ASTUtils.createConnection(
             element.startBinding?.elementId || 'unknown',
             element.endBinding?.elementId || 'unknown',
-            element.type === 'arrow' ? 'arrow' : 'line'
+            'arrow'
           );
           connections.push(connectionNode);
+          console.log('Created connection:', connectionNode);
         }
       });
-    }
-    
-    return connections;
-  };
+      
+      return connections;
+    };
 
-  React.useEffect(() => {
-    const shapes = convertExcalidrawToShapes(excalidrawData);
-    const connections = convertExcalidrawToConnections(excalidrawData);
-    onImport(shapes, connections);
+    try {
+      const shapes = convertExcalidrawToShapes(excalidrawData);
+      const connections = convertExcalidrawToConnections(excalidrawData);
+      
+      console.log('Final shapes:', shapes);
+      console.log('Final connections:', connections);
+      
+      onImport(shapes, connections);
+    } catch (error) {
+      console.error('Error importing Excalidraw data:', error);
+    }
   }, [excalidrawData, onImport]);
 
   return null;
