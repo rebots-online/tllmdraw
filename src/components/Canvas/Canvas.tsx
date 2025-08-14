@@ -13,6 +13,7 @@ import { AnnotationTools } from './AnnotationTools';
 import { CanvasExporter } from './CanvasExporter';
 import { CanvasHistory } from './CanvasHistory';
 import { CanvasSettings } from './CanvasSettings';
+import { Draggable } from '../Draggable';
 
 interface CanvasProps {
   width?: number;
@@ -61,10 +62,19 @@ export const Canvas: React.FC<CanvasProps> = ({
     action: string;
     timestamp: Date;
     description: string;
+    snapshot: { shapes: ShapeNode[]; connections: ConnectionNode[] };
   }>>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  const [toolbarPos, setToolbarPos] = useState({ x: 16, y: 16 });
+  const [importerPos, setImporterPos] = useState({ x: width - 160, y: 16 });
+  const [userToolboxPos, setUserToolboxPos] = useState({ x: 16, y: height - 160 });
+  const [annotationPos, setAnnotationPos] = useState({ x: width / 2 - 100, y: height / 2 - 100 });
+  const [exporterPos, setExporterPos] = useState({ x: width - 260, y: 16 });
+  const [historyPos, setHistoryPos] = useState({ x: width - 460, y: 16 });
+  const [settingsPos, setSettingsPos] = useState({ x: width - 660, y: 16 });
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
@@ -138,12 +148,17 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const addToHistory = (action: string, description: string) => {
+    const snapshot = {
+      shapes: JSON.parse(JSON.stringify(shapes)),
+      connections: JSON.parse(JSON.stringify(connections)),
+    };
     const newHistory = history.slice(0, historyIndex + 1);
     const newEntry = {
       id: Math.random().toString(36).substr(2, 9),
       action,
       timestamp: new Date(),
       description,
+      snapshot,
     };
     setHistory([...newHistory, newEntry]);
     setHistoryIndex(newHistory.length);
@@ -151,15 +166,21 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleUndo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      // Implement actual undo logic here
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const snapshot = history[newIndex].snapshot;
+      setShapes(snapshot.shapes);
+      setConnections(snapshot.connections);
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      // Implement actual redo logic here
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const snapshot = history[newIndex].snapshot;
+      setShapes(snapshot.shapes);
+      setConnections(snapshot.connections);
     }
   };
 
@@ -168,12 +189,16 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleNodeUpdate = (nodeId: string, properties: Partial<ShapeNode['properties']>) => {
-    setShapes(prev => prev.map(shape => 
-      shape.id === nodeId 
+    setShapes(prev => prev.map(shape =>
+      shape.id === nodeId
         ? { ...shape, properties: { ...shape.properties, ...properties } }
         : shape
     ));
     onNodeUpdated?.(nodeId, properties);
+  };
+
+  const handleNodeMoveEnd = () => {
+    addToHistory('move', 'Node moved');
   };
 
   const handleImport = (data: any, type: 'excalidraw' | 'tldraw') => {
@@ -192,14 +217,19 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleSave = () => {
-    // Save functionality would be implemented here
-    console.log('Saving canvas');
+    const data = { shapes, connections, canvasSettings };
+    localStorage.setItem('nexus-canvas', JSON.stringify(data));
     addToHistory('save', 'Canvas saved');
   };
 
-  const handleShare = () => {
-    // Share functionality would be implemented here
-    console.log('Sharing canvas');
+  const handleShare = async () => {
+    const data = { shapes, connections, canvasSettings };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(data));
+      addToHistory('share', 'Canvas copied to clipboard');
+    } catch (err) {
+      console.error('Share failed', err);
+    }
   };
 
   const handleToolAction = (action: string) => {
@@ -253,8 +283,18 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleExport = async (format: 'png' | 'svg' | 'json' | 'excalidraw' | 'tldraw') => {
-    // Implement actual export logic here
-    console.log('Exporting as', format);
+    const data = { shapes, connections, canvas };
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'canvas.json';
+      link.click();
+      URL.revokeObjectURL(url);
+    } else {
+      console.log('Export as', format, 'not implemented');
+    }
     addToHistory('export', `Exported as ${format}`);
   };
 
@@ -308,10 +348,11 @@ export const Canvas: React.FC<CanvasProps> = ({
           selectedNodeId={selectedNodeId || undefined}
           onNodeSelect={handleNodeSelect}
           onNodeUpdate={handleNodeUpdate}
+          onNodeMoveEnd={handleNodeMoveEnd}
         />
         
         {/* Positioned toolboxes to prevent overlap */}
-        <div className="absolute top-4 left-4 z-10">
+        <Draggable id="toolbar" initialPosition={toolbarPos} onDragEnd={setToolbarPos}>
           <CanvasToolbar
             onToolSelect={setSelectedTool}
             selectedTool={selectedTool}
@@ -320,25 +361,25 @@ export const Canvas: React.FC<CanvasProps> = ({
             onSave={handleSave}
             onShare={handleShare}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute top-4 right-4 z-10">
+        <Draggable id="importer" initialPosition={importerPos} onDragEnd={setImporterPos}>
           <CanvasImporter
             onImport={handleImport}
             onClear={handleClear}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute bottom-4 left-4 z-10">
+        <Draggable id="user-toolbox" initialPosition={userToolboxPos} onDragEnd={setUserToolboxPos}>
           <UserToolbox
             onToolSelect={setSelectedTool}
             selectedTool={selectedTool}
             onAction={handleToolAction}
             canvasSettings={canvasSettings}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+        <Draggable id="annotation" initialPosition={annotationPos} onDragEnd={setAnnotationPos}>
           <AnnotationTools
             onAnnotation={handleAnnotation}
             selectedAnnotation={selectedAnnotation}
@@ -346,16 +387,16 @@ export const Canvas: React.FC<CanvasProps> = ({
             onAnnotationUpdate={handleAnnotationUpdate}
             onAnnotationDelete={handleAnnotationDelete}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute top-4 right-24 z-10">
+        <Draggable id="exporter" initialPosition={exporterPos} onDragEnd={setExporterPos}>
           <CanvasExporter
             canvasData={{ shapes, connections, canvas }}
             onExport={handleExport}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute top-4 right-44 z-10">
+        <Draggable id="history" initialPosition={historyPos} onDragEnd={setHistoryPos}>
           <CanvasHistory
             onUndo={handleUndo}
             onRedo={handleRedo}
@@ -364,16 +405,16 @@ export const Canvas: React.FC<CanvasProps> = ({
             canRedo={historyIndex < history.length - 1}
             history={history}
           />
-        </div>
+        </Draggable>
 
-        <div className="absolute top-4 right-64 z-10">
+        <Draggable id="settings" initialPosition={settingsPos} onDragEnd={setSettingsPos}>
           <CanvasSettings
             settings={canvasSettings}
             onSettingsChange={handleSettingsChange}
             onReset={handleSettingsReset}
             onSave={handleSettingsSave}
           />
-        </div>
+        </Draggable>
 
         {importedData?.type === 'excalidraw' && (
           <ExcalidrawImporter
