@@ -11,6 +11,7 @@ interface CanvasRendererProps {
   selectedNodeId?: string;
   onNodeSelect?: (nodeId: string) => void;
   onNodeUpdate?: (nodeId: string, properties: any) => void;
+  onNodeMoveEnd?: (nodeId: string) => void;
 }
 
 export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
@@ -20,10 +21,13 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
   selectedNodeId,
   onNodeSelect,
   onNodeUpdate,
+  onNodeMoveEnd,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const handleZoom = (direction: 'in' | 'out') => {
     const newScale = direction === 'in' ? scale * 1.2 : scale / 1.2;
@@ -35,6 +39,26 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
       x: prev.x + dx,
       y: prev.y + dy,
     }));
+  };
+
+  const handleDragStart = (id: string, start: { x: number; y: number }, offset: { x: number; y: number }) => {
+    setDraggingId(id);
+    setDragOffset(offset);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingId) return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    const x = e.clientX - (rect?.left || 0) - dragOffset.x;
+    const y = e.clientY - (rect?.top || 0) - dragOffset.y;
+    onNodeUpdate?.(draggingId, { x, y });
+  };
+
+  const handleMouseUp = () => {
+    if (draggingId) {
+      onNodeMoveEnd?.(draggingId);
+    }
+    setDraggingId(null);
   };
 
   const renderConnections = () => {
@@ -74,6 +98,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         viewBox={`${offset.x} ${offset.y} ${canvas.properties.width * scale} ${canvas.properties.height * scale}`}
         className="bg-white"
         style={{ backgroundColor: canvas.properties.backgroundColor }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
         <defs>
           <marker
@@ -121,14 +148,15 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         
         {/* Shapes */}
         {shapes.map((shape) => (
-          <ShapeRenderer
-            key={shape.id}
-            node={shape}
-            isSelected={selectedNodeId === shape.id}
-            onSelect={onNodeSelect}
-            onUpdate={onNodeUpdate}
-          />
-        ))}
+        <ShapeRenderer
+          key={shape.id}
+          node={shape}
+          isSelected={selectedNodeId === shape.id}
+          onSelect={onNodeSelect}
+          onUpdate={onNodeUpdate}
+          onDragStart={handleDragStart}
+        />
+      ))}
       </svg>
     </div>
   );
