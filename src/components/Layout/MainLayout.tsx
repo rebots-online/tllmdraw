@@ -1,15 +1,24 @@
 "use client";
 
-import React from 'react';
-import { Canvas } from '@/components/Canvas/Canvas';
+import React, { useRef } from 'react';
+import { Canvas, CanvasHandle } from '@/components/Canvas/Canvas';
 import { AIAssistant } from '@/components/Chat/AIAssistant';
 import { MadeWithDyad } from '@/components/made-with-dyad';
+import { useLLM } from '@/hooks/use-llm';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const canvasRef = useRef<CanvasHandle>(null);
+  const { messages, isTyping, sendMessage } = useLLM();
+
+  const handleSendMessage = async (message: string) => {
+    const actions = await sendMessage(message);
+    actions.forEach(action => canvasRef.current?.applyAction(action));
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
@@ -42,24 +51,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {/* Canvas Area */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1 bg-white m-4 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <Canvas />
+            <Canvas ref={canvasRef} />
           </div>
         </div>
 
         {/* AI Assistant Sidebar */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
           <AIAssistant
-            onSendMessage={async (message) => {
-              console.log('Sending message:', message);
-            }}
-            messages={[
-              {
-                id: '1',
-                role: 'assistant',
-                content: 'Hello! I\'m your AI design assistant. I can help you create layouts, analyze your designs, and suggest improvements. What would you like to work on today?',
-                timestamp: new Date(),
-              },
-            ]}
+            onSendMessage={handleSendMessage}
+            messages={messages}
+            isTyping={isTyping}
           />
         </div>
       </div>
