@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
-import { ShapeNode, ConnectionNode, CanvasNode } from '@/ast/ast-types';
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { ShapeNode, ConnectionNode, CanvasNode, CanvasAction } from '@/ast/ast-types';
 import { ASTUtils } from '@/ast/ast-utils';
 import { CanvasRenderer } from './CanvasRenderer';
 import { CanvasToolbar } from './CanvasToolbar';
@@ -23,13 +23,17 @@ interface CanvasProps {
   onNodeDeleted?: (nodeId: string) => void;
 }
 
-export const Canvas: React.FC<CanvasProps> = ({
+export interface CanvasHandle {
+  applyAction: (action: CanvasAction) => void;
+}
+
+export const Canvas = forwardRef<CanvasHandle, CanvasProps>({
   width = 1200,
   height = 800,
   onNodeCreated,
   onNodeUpdated,
   onNodeDeleted,
-}) => {
+}, ref) => {
   const [canvas, setCanvas] = useState<CanvasNode>(() => ASTUtils.createCanvas(width, height));
   const [shapes, setShapes] = useState<ShapeNode[]>([]);
   const [connections, setConnections] = useState<ConnectionNode[]>([]);
@@ -75,6 +79,52 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [exporterPos, setExporterPos] = useState({ x: width - 260, y: 16 });
   const [historyPos, setHistoryPos] = useState({ x: width - 460, y: 16 });
   const [settingsPos, setSettingsPos] = useState({ x: width - 660, y: 16 });
+
+  useImperativeHandle(ref, () => ({
+    applyAction(action: CanvasAction) {
+      const { type, nodeId, properties } = action;
+      if (type === 'create' && properties) {
+        const shapeNode: ShapeNode = ASTUtils.createShape(
+          properties.shapeType || 'rectangle',
+          properties.x || 0,
+          properties.y || 0,
+          properties.width || 100,
+          properties.height || 50,
+          properties
+        );
+        setShapes(prev => [...prev, shapeNode]);
+        onNodeCreated?.(shapeNode);
+      } else if (type === 'update' && nodeId && properties) {
+        setShapes(prev =>
+          prev.map(s =>
+            s.id === nodeId
+              ? { ...s, properties: { ...s.properties, ...properties } }
+              : s
+          )
+        );
+        onNodeUpdated?.(nodeId, properties);
+      } else if (type === 'move' && nodeId && properties) {
+        setShapes(prev =>
+          prev.map(s =>
+            s.id === nodeId
+              ? {
+                  ...s,
+                  properties: {
+                    ...s.properties,
+                    x: properties.x ?? s.properties.x,
+                    y: properties.y ?? s.properties.y,
+                  },
+                }
+              : s
+          )
+        );
+        onNodeUpdated?.(nodeId, properties);
+      } else if (type === 'delete' && nodeId) {
+        setShapes(prev => prev.filter(s => s.id !== nodeId));
+        onNodeDeleted?.(nodeId);
+      }
+    },
+  }));
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
@@ -439,4 +489,4 @@ export const Canvas: React.FC<CanvasProps> = ({
       </div>
     </div>
   );
-};
+});
