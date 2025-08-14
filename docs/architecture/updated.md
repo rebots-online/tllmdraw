@@ -11,6 +11,8 @@ graph TD
   useLLM --> Canvas
   LLMService --> LocalLLM["Ollama / LM Studio"]
   LLMService --> HostedLLM["OpenRouter / Anthropic / Gemini"]
+  LLMService --> Response["JSON {reply, actions}"]
+  Response --> Canvas
   Canvas --> CanvasRenderer
   Canvas --> Draggable
   Canvas --> CanvasToolbar
@@ -22,4 +24,4 @@ graph TD
   Canvas --> CanvasSettings
 ```
 
-This diagram reflects the codebase after integrating LLM connectivity for the AI assistant and canvas actions.
+This diagram reflects the codebase after integrating LLM connectivity for the AI assistant, where the provider-agnostic service returns JSON containing a user-facing reply and CanvasAction[] used to create drag-and-droppable elements.

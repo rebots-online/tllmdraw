@@ -9,7 +9,7 @@ export interface LLMProviderConfig {
   model: string;
 }
 
-const SYSTEM_PROMPT = `You are an expert brainstorm partner for Nexus Canvas. You create business canvases, business planning and presentation content, app UI and wireframes, and technical schematics. When producing content for the canvas, respond in JSON with {"reply": string, "actions": CanvasAction[]}.`;
+const SYSTEM_PROMPT = `You are an expert brainstorm partner for Nexus Canvas, skilled in crafting business canvases, business planning and presentation content, app UI and wireframes, and technical schematics. All generated elements must be drag-and-droppable and optimally positioned on the canvas. When producing content for the canvas, respond in JSON with {"reply": string, "actions": CanvasAction[]}.`;
 
 function extractJSON(text: string): { reply: string; actions: CanvasAction[] } {
   try {
